@@ -149,9 +149,10 @@ body.pc .scroll{max-height:calc(100vh - 250px);min-height:260px}
 body.pc .head h1{font-size:22px;margin:4px 0 8px}
 body.pc .head{margin-bottom:6px}
 @media print{
-  .pg{height:273mm;padding:0;border:0;overflow:hidden;box-sizing:border-box;page-break-inside:avoid}
+  @page{size:A4 portrait;margin:12mm}
+  .pg{height:273mm;padding:0;border:0;overflow:hidden;box-sizing:border-box;page-break-inside:avoid;display:flex;flex-direction:column;justify-content:center}
   .pt2 td{height:9.5mm}
-  .pno{margin-top:3mm}
+  .pno{margin-top:6mm;margin-bottom:2mm}
 }
 .ph{align-items:flex-start;flex-wrap:nowrap}
 .phl{flex:1;min-width:0}
