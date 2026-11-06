@@ -115,6 +115,15 @@ input,select{width:100%;padding:13px;border:1.5px solid #dcd8d1;border-radius:14
 .sg{border-collapse:collapse;font-size:11px}
 .sg th,.sg td{border:1px solid #666;padding:2px 8px;text-align:center;color:#000}
 .sg td{height:24px;width:60px}
+body.pc{max-width:1600px;padding:14px 28px 24px}
+body.pc .card{margin-bottom:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+.scroll{max-height:calc(100vh - 260px);min-height:360px;overflow:auto;margin-top:10px}
+body.pc .tb{font-size:15px}
+body.pc .tb th{position:sticky;top:0;background:#fff}
+body.pc .fgrid{grid-template-columns:1fr 1fr 1fr}
+@media (min-width:1200px){ body.pc .main{font-size:16px} }
 </style>
 </head>
 <body>
@@ -188,6 +197,7 @@ async function loadResv(){
 }
 
 function render(){
+  document.body.classList.toggle("pc", view==="admin");
   if(!GAS_URL) return connectView();
   if(view==="connect") return connectView();
   if(view==="admin") return adminView();
@@ -361,6 +371,9 @@ async function save(){
 
 
 /* ---------- 관리자 (PC) ---------- */
+function toggleFull(){
+  try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){ toast("이 브라우저에서는 전체화면을 지원하지 않습니다"); }
+}
 let adminPin="", adminTab="log", adminDraft=null, adminRecs=null, adminMaint=null, adminCar="", adminEditRow=null, adminEditMaint=null;
 function post(d){ return fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(d)}).then(r=>r.json()); }
 function loadingCard(){ return `<div class="card empty" style="margin-top:12px">불러오는 중...</div>`; }
@@ -370,7 +383,7 @@ function adminView(){
   if(!adminDraft) adminDraft={cars:CARS.map(c=>({n:c.n,p:c.p||""})), drivers:[...DRIVERS]};
   const tabs=[["log","📋 운행일지"],["print","🖨 일지 인쇄"],["maint","🔧 정비기록"],["cfg","🚗 차량·운전자"]];
   const body = adminTab==="log" ? adminLogView() : adminTab==="print" ? adminPrintView() : adminTab==="maint" ? adminMaintView() : adminCfgView();
-  $("#app").innerHTML = `<button class="back" onclick="goHome()">← 돌아가기</button>
+  $("#app").innerHTML = `<div class="topbar"><button class="back" onclick="goHome()">← 돌아가기</button><button class="back" onclick="toggleFull()">⛶ 전체화면</button></div>
   <div class="head"><h1>관리자<span>화면</span></h1></div>
   <div class="opts" style="flex-wrap:wrap">${tabs.map(([k,l])=>`<button class="${adminTab===k?'on':''}" style="flex:1 1 45%" onclick="adminGo('${k}')">${l}</button>`).join("")}</div>
   ${body}${FOOT}`;
@@ -413,18 +426,19 @@ function carSelect(all){
 /* 운행일지: 목록 + 수정·삭제 */
 function adminLogView(){
   if(adminRecs===null) return loadingCard();
-  if(adminEditRow!==null) return logEditForm();
   const rows=adminRecs.filter(r=>!adminCar||r.car===adminCar).slice().reverse();
-  return `<div class="card">${carSelect(true)}
+  const list=`<div class="card">${carSelect(true)}
   <button class="main pu" onclick="adminLoad('records')">↻ 새로고침</button>
-  <table class="tb"><tr><th>날짜</th><th>차량</th><th>운전자</th><th>행선지</th><th>거리</th><th></th></tr>
+  <div class="scroll"><table class="tb"><tr><th>날짜</th><th>차량</th><th>운전자</th><th>행선지</th><th>거리</th><th></th></tr>
   ${rows.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}/${esc(r.d)}</td><td>${esc(r.car)}</td><td>${esc(r.driver)}</td><td>${esc(r.dest)}</td><td>${esc(r.dist)}</td><td><button class="mini" onclick="logEdit(${r.rowNo})">수정</button></td></tr>`).join("")||'<tr><td colspan="6">기록이 없습니다</td></tr>'}
-  </table></div>`;
+  </table></div></div>`;
+  const right = adminEditRow!==null ? logEditForm() : `<div class="card empty" style="margin-top:0">왼쪽 목록에서 <b>수정</b>할 기록을 고르세요.</div>`;
+  return `<div class="split"><div>${list}</div><div>${right}</div></div>`;
 }
 function logEdit(rowNo){ adminEditRow=rowNo; render(); }
 function logEditForm(){
   const r=adminRecs.find(x=>x.rowNo===adminEditRow);
-  if(!r){ adminEditRow=null; return adminLogView(); }
+  if(!r){ adminEditRow=null; return `<div class="card empty" style="margin-top:0">기록을 찾을 수 없습니다. 새로고침 해 주세요.</div>`; }
   const dr = (!r.driver || DRIVERS.includes(r.driver)) ? DRIVERS : [r.driver, ...DRIVERS];
   return `<div class="card"><b style="font-size:calc(17px * var(--k))">기록 수정 · ${esc(r.car)} · ${esc(r.m)}/${esc(r.d)}</b>
   <div class="fgrid">
@@ -438,7 +452,7 @@ function logEditForm(){
   <label>도착 계기판(km)<input id="f_odoE" type="number" value="${esc(r.odoE)}" oninput="calcDist()"></label>
   <label>운행거리(km)<input id="f_dist" value="${esc(r.dist)}" readonly></label>
   <label>차량정비·주유<input id="f_fix" value="${esc(r.fix)}"></label>
-  <label>현재 주유량<input id="f_gauge" value="${esc(r.gauge)}"></label>
+  <label>잔유량<input id="f_gauge" value="${esc(r.gauge)}"></label>
   </div>
   <div class="err" id="err"></div>
   <button class="main g" onclick="logSave(${r.rowNo})">💾 저장</button>
@@ -484,7 +498,7 @@ function adminPrintView(){
   <div class="ph"><span class="pt">차량운행 및 정비일지</span>
     <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)} · ${pi+1} / ${pages.length} 쪽</span>
     <table class="sg"><tr><th>과장</th><th>부장</th><th>사무처장</th></tr><tr><td></td><td></td><td></td></tr></table></div>
-  <table class="pt2"><tr><th rowspan="2">월</th><th rowspan="2">일</th><th rowspan="2">운전자</th><th rowspan="2">탑승<br>인원</th><th rowspan="2">행선지</th><th rowspan="2">목적</th><th colspan="2">운행시간</th><th colspan="3">운행거리(km)</th><th rowspan="2">차량정비·주유</th><th rowspan="2">현재<br>주유량</th></tr>
+  <table class="pt2"><tr><th rowspan="2">월</th><th rowspan="2">일</th><th rowspan="2">운전자</th><th rowspan="2">탑승<br>인원</th><th rowspan="2">행선지</th><th rowspan="2">목적</th><th colspan="2">운행시간</th><th colspan="3">운행거리(km)</th><th rowspan="2">차량정비·주유</th><th rowspan="2">잔유량</th></tr>
   <tr><th>출발</th><th>도착</th><th>출발</th><th>도착</th><th>주행거리</th></tr>
   ${pg.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}</td><td>${esc(r.d)}</td><td>${esc(r.driver)}</td><td>${esc(r.people)}</td><td>${esc(r.dest)}</td><td>${esc(r.purpose)}</td><td>${esc(r.st)}</td><td>${esc(r.en)}</td><td>${esc(r.odoS)}</td><td>${esc(r.odoE)}</td><td>${esc(r.dist)}</td><td>${esc(r.fix)}</td><td>${esc(r.gauge)}</td></tr>`).join("")}
   </table></div>`).join("");
