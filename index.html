@@ -124,6 +124,17 @@ body.pc .tb{font-size:15px}
 body.pc .tb th{position:sticky;top:0;background:#fff}
 body.pc .fgrid{grid-template-columns:1fr 1fr 1fr}
 @media (min-width:1200px){ body.pc .main{font-size:16px} }
+.adm{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px;align-items:start}
+.side{display:flex;flex-direction:column;gap:10px;position:sticky;top:10px}
+.side button{text-align:left;padding:18px 16px;background:#f6f4f0;border:2px solid #e7e4de;border-radius:12px;font-weight:700;font-size:calc(16px * var(--k))}
+.side button.on{background:#e9edff;border-color:#3b5bdb;color:#3b5bdb;font-weight:800}
+.cont{min-width:0}
+.sgset{margin-top:12px}
+.sgrow{display:grid;grid-template-columns:130px 1fr;gap:8px;margin-top:8px}
+.sgrow input{margin-top:0;font-size:calc(16px * var(--k))}
+.sg td.sgn{height:36px;font-size:12px}
+.pf{display:flex;justify-content:space-between;font-size:11px;color:#000;border-top:1px solid #666;margin-top:8px;padding-top:4px}
+@media print{ .pg .pf{margin-top:10px} }
 </style>
 </head>
 <body>
@@ -385,8 +396,9 @@ function adminView(){
   const body = adminTab==="log" ? adminLogView() : adminTab==="print" ? adminPrintView() : adminTab==="maint" ? adminMaintView() : adminCfgView();
   $("#app").innerHTML = `<div class="topbar"><button class="back" onclick="goHome()">← 돌아가기</button><button class="back" onclick="toggleFull()">⛶ 전체화면</button></div>
   <div class="head"><h1>관리자<span>화면</span></h1></div>
-  <div class="opts" style="flex-wrap:wrap">${tabs.map(([k,l])=>`<button class="${adminTab===k?'on':''}" style="flex:1 1 45%" onclick="adminGo('${k}')">${l}</button>`).join("")}</div>
-  ${body}${FOOT}`;
+  <div class="adm"><nav class="side">${tabs.map(([k,l])=>`<button class="${adminTab===k?'on':''}" onclick="adminGo('${k}')">${l}</button>`).join("")}</nav>
+  <section class="cont">${body}</section></div>
+  ${FOOT}`;
 }
 function adminGate(){
   $("#app").innerHTML = `<button class="back" onclick="goHome()">← 돌아가기</button>
@@ -414,7 +426,7 @@ function adminGo(k){
 }
 async function adminLoad(kind){
   try{
-    if(kind==="records"){ const j=await (await fetch(GAS_URL+"?action=records")).json(); adminRecs=j.records||[]; }
+    if(kind==="records"){ const j=await (await fetch(GAS_URL+"?action=records")).json(); adminRecs=j.records||[]; adminPrintCfg=j.printCfg||defPrintCfg(); }
     else { const j=await (await fetch(GAS_URL+"?action=maint_list")).json(); adminMaint=j.records||[]; }
   }catch(e){ if(kind==="records") adminRecs=[]; else adminMaint=[]; }
   if(view==="admin") render();
@@ -486,25 +498,75 @@ async function logDelete(rowNo){
   }catch(e){ if(err) err.textContent=e.message||"삭제에 실패했습니다."; }
 }
 
-/* 인쇄: 차량별, 한 페이지 20줄 */
-function adminPrintView(){
-  if(adminRecs===null) return loadingCard();
-  if(!adminCar && CARS.length) adminCar=CARS[0].n;
-  const c=CARS.find(x=>x.n===adminCar)||{n:"",p:""};
-  const rows=adminRecs.filter(r=>r.car===adminCar);
-  const pages=[]; for(let i=0;i<rows.length;i+=20) pages.push(rows.slice(i,i+20));
-  if(!pages.length) pages.push([]);
-  const html=pages.map((pg,pi)=>`<div class="pg">
+/* 인쇄: 차량별, 한 페이지 20줄 + 결재 라인 + 하단 기관명 */
+let adminPrintCfg=null, adminPrintDraft=null;
+function defPrintCfg(){ return {org:"", signCount:3, sign:[{t:"과장",n:""},{t:"부장",n:""},{t:"사무처장",n:""}]}; }
+function ensurePrintDraft(){ if(!adminPrintDraft) adminPrintDraft=JSON.parse(JSON.stringify(adminPrintCfg||defPrintCfg())); }
+function setSignCount(n){
+  ensurePrintDraft(); const d=adminPrintDraft; n=+n; d.signCount=n;
+  while(d.sign.length<n) d.sign.unshift({t:"담당",n:""});
+  while(d.sign.length>n) d.sign.shift();
+  render();
+}
+function printSetCard(){
+  ensurePrintDraft(); const d=adminPrintDraft;
+  return `<div class="card"><b style="font-size:calc(17px * var(--k))">✍️ 결재 라인 · 기관명</b>
+  <div class="fgrid">
+  <label>결재 라인 인원<select onchange="setSignCount(this.value)"><option value="3" ${d.signCount==3?'selected':''}>3명</option><option value="4" ${d.signCount==4?'selected':''}>4명</option></select></label>
+  </div>
+  <p class="lbl" style="margin-top:12px">결재자는 목록에서 고르거나 직접 입력합니다. 직책은 바꿀 수 있습니다.</p>
+  <datalist id="staffList">${DRIVERS.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+  <div class="sgset">${d.sign.map((x,i)=>`<div class="sgrow"><input value="${esc(x.t)}" placeholder="직책" oninput="adminPrintDraft.sign[${i}].t=this.value"><input value="${esc(x.n)}" list="staffList" placeholder="이름 선택 또는 입력" oninput="adminPrintDraft.sign[${i}].n=this.value"></div>`).join("")}</div>
+  <div class="err" id="err"></div>
+  <button class="main g" onclick="savePrintCfg()">💾 결재·기관 설정 저장</button></div>`;
+}
+async function savePrintCfg(){
+  const err=$("#err"); err.textContent=""; ensurePrintDraft(); const d=adminPrintDraft;
+  const cfg={org:(d.org||"").trim(), signCount:d.signCount, sign:d.sign.map(x=>({t:(x.t||"").trim(),n:(x.n||"").trim()}))};
+  try{
+    const j=await post({action:"save_print", pin:adminPin, cfg});
+    if(!j.ok) throw new Error(j.error);
+    adminPrintCfg=cfg; adminPrintDraft=null; toast("저장되었습니다"); render();
+  }catch(e){ err.textContent=e.message||"저장에 실패했습니다."; }
+}
+function printCarSelect(){
+  return `<select class="carsel" onchange="adminCar=this.value;render()"><option value="__ALL__" ${adminCar==='__ALL__'?'selected':''}>전체 차량 (차량마다 새 페이지)</option>${CARS.map(c=>`<option value="${esc(c.n)}" ${adminCar===c.n?'selected':''}>${esc(c.n)}</option>`).join("")}</select>`;
+}
+function pageHtml(c,pg,pi,total,pc,sign){
+  return `<div class="pg">
   <div class="ph"><span class="pt">차량운행 및 정비일지</span>
-    <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)} · ${pi+1} / ${pages.length} 쪽</span>
-    <table class="sg"><tr><th>과장</th><th>부장</th><th>사무처장</th></tr><tr><td></td><td></td><td></td></tr></table></div>
+    <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)}</span>${sign}</div>
   <table class="pt2"><tr><th rowspan="2">월</th><th rowspan="2">일</th><th rowspan="2">운전자</th><th rowspan="2">탑승<br>인원</th><th rowspan="2">행선지</th><th rowspan="2">목적</th><th colspan="2">운행시간</th><th colspan="3">운행거리(km)</th><th rowspan="2">차량정비·주유</th><th rowspan="2">잔유량</th></tr>
   <tr><th>출발</th><th>도착</th><th>출발</th><th>도착</th><th>주행거리</th></tr>
   ${pg.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}</td><td>${esc(r.d)}</td><td>${esc(r.driver)}</td><td>${esc(r.people)}</td><td>${esc(r.dest)}</td><td>${esc(r.purpose)}</td><td>${esc(r.st)}</td><td>${esc(r.en)}</td><td>${esc(r.odoS)}</td><td>${esc(r.odoE)}</td><td>${esc(r.dist)}</td><td>${esc(r.fix)}</td><td>${esc(r.gauge)}</td></tr>`).join("")}
-  </table></div>`).join("");
-  return `<div class="card noprint">${carSelect(false)}
+  </table>
+  <div class="pf"><span></span><span>${pi+1} / ${total} 쪽</span></div></div>`;
+}
+function adminPrintView(){
+  if(adminRecs===null) return loadingCard();
+  if(!adminCar && CARS.length) adminCar="__ALL__";
+  const pc=adminPrintDraft || adminPrintCfg || defPrintCfg();
+  const sign=`<table class="sg"><tr>${pc.sign.map(x=>`<th>${esc(x.t)}</th>`).join("")}</tr><tr>${pc.sign.map(x=>`<td class="sgn">${esc(x.n)}</td>`).join("")}</tr></table>`;
+  const isAll = adminCar==="__ALL__";
+  const targets = isAll ? CARS : CARS.filter(x=>x.n===adminCar);
+  let html="";
+  targets.forEach(c=>{
+    const rows=adminRecs.filter(r=>r.car===c.n);
+    if(isAll && !rows.length) return;
+    const pages=[]; for(let i=0;i<rows.length;i+=20) pages.push(rows.slice(i,i+20));
+    if(!pages.length) pages.push([]);
+    html += pages.map((pg,pi)=>pageHtml(c,pg,pi,pages.length,pc,sign)).join("");
+  });
+  const status = CARS.map(c=>{
+    const n=adminRecs.filter(r=>r.car===c.n).length;
+    const left = n===0 ? 20 : (n%20===0 ? 0 : 20-(n%20));
+    return `<tr><td>${esc(c.n)}</td><td>${n}줄</td><td>${Math.max(1,Math.ceil(n/20))}쪽</td><td>${left===0?'✅ 20줄 완성 (인쇄 가능)':'다음 쪽까지 '+left+'줄'}</td></tr>`;
+  }).join("");
+  return `<div class="noprint">${printSetCard()}</div>
+  <div class="card noprint">${printCarSelect()}
+  <table class="tb"><tr><th>차량</th><th>기록</th><th>쪽 수</th><th>상태</th></tr>${status}</table>
   <button class="main pu" onclick="window.print()">🖨 인쇄 / PDF 저장</button>
-  <p class="lbl" style="margin-top:8px;line-height:1.6">한 페이지에 20줄씩 나뉘어 인쇄됩니다. 노란색 행은 계기판 차이가 있는 기록입니다. 인쇄 창에서 "배경 그래픽"을 켜 주세요.</p></div>
+  <p class="lbl" style="margin-top:8px;line-height:1.6">"전체 차량"을 고르면 차량마다 20줄씩 나뉘어 차례로 인쇄됩니다. 노란색 행은 계기판 차이가 있는 기록입니다. 인쇄 창에서 "배경 그래픽"을 켜 주세요.</p></div>
   <div id="printArea">${html}</div>`;
 }
 
