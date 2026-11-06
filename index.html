@@ -153,6 +153,14 @@ body.pc .head{margin-bottom:6px}
   .pt2 td{height:9.5mm}
   .pno{margin-top:3mm}
 }
+.ph{align-items:flex-start;flex-wrap:nowrap}
+.phl{flex:1;min-width:0}
+.pt{font-size:32px;font-weight:800;width:auto;line-height:1.2}
+.pcar{font-size:24px;margin-top:4px;line-height:1.3}
+.kmbox{margin-top:12px;padding:10px 12px;background:#f6f4f0;border-radius:10px;font-size:14px;line-height:1.7}
+.signrow{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;margin-top:12px}
+.signrow .cnt{width:120px;flex:0 0 120px;margin-top:0;font-size:calc(16px * var(--k))}
+.signrow .tt{flex:1 1 0;min-width:0;margin-top:0;font-size:calc(16px * var(--k))}
 </style>
 </head>
 <body>
@@ -491,27 +499,55 @@ function logEditForm(){
   if(!r){ adminEditRow=null; return `<div class="card empty" style="margin-top:0">기록을 찾을 수 없습니다. 새로고침 해 주세요.</div>`; }
   const dr = (!r.driver || DRIVERS.includes(r.driver)) ? DRIVERS : [r.driver, ...DRIVERS];
   const carOpts = CARS.map(c=>`<option ${c.n===r.car?'selected':''}>${esc(c.n)}</option>`).join("");
+  if(isNew) setTimeout(kmCheck,0);
   return `<div class="card"><b style="font-size:calc(17px * var(--k))">${isNew?'➕ 기록 추가':'기록 수정 · '+esc(r.car)+' · '+esc(r.m)+'/'+esc(r.d)}</b>
   <div class="fgrid">
-  <label>차량${isNew?`<select id="f_car">${carOpts}</select>`:`<input value="${esc(r.car)}" readonly>`}</label>
-  <label>월<input id="f_m" type="number" min="1" max="12" value="${esc(r.m)}"></label>
-  <label>일<input id="f_d" type="number" min="1" max="31" value="${esc(r.d)}"></label>
+  <label>차량${isNew?`<select id="f_car" onchange="kmCheck()">${carOpts}</select>`:`<input value="${esc(r.car)}" readonly>`}</label>
+  <label>월<input id="f_m" type="number" min="1" max="12" value="${esc(r.m)}" ${isNew?'oninput="kmCheck()"':''}></label>
+  <label>일<input id="f_d" type="number" min="1" max="31" value="${esc(r.d)}" ${isNew?'oninput="kmCheck()"':''}></label>
   <label>운전자<select id="f_driver">${dr.map(n=>`<option ${n===r.driver?'selected':''}>${esc(n)}</option>`).join("")}</select></label>
   <label>탑승인원<input id="f_people" type="number" min="1" value="${esc(r.people)}"></label>
   <label>행선지<input id="f_dest" value="${esc(r.dest)}"></label>
   <label>목적<input id="f_purpose" value="${esc(r.purpose)}"></label>
-  <label>출발 시간<input id="f_st" value="${esc(r.st)}" placeholder="15:40"></label>
+  <label>출발 시간<input id="f_st" value="${esc(r.st)}" placeholder="15:40" ${isNew?'oninput="kmCheck()"':''}></label>
   <label>도착 시간<input id="f_en" value="${esc(r.en)}" placeholder="16:10"></label>
-  <label>출발 계기판(km)<input id="f_odoS" type="number" value="${esc(r.odoS)}" oninput="calcDist()"></label>
+  <label>출발 계기판(km)<input id="f_odoS" type="number" value="${esc(r.odoS)}" oninput="calcDist();kmCheck()"></label>
   <label>도착 계기판(km)<input id="f_odoE" type="number" value="${esc(r.odoE)}" oninput="calcDist()"></label>
   <label>운행거리(km)<input id="f_dist" value="${esc(r.dist)}" readonly></label>
   <label>차량정비·주유<input id="f_fix" value="${esc(r.fix)}"></label>
   <label>잔유량<input id="f_gauge" value="${esc(r.gauge)}"></label>
   </div>
+  ${isNew?'<div class="kmbox" id="kmBox"></div>':''}
   <div class="err" id="err"></div>
   <button class="main g" onclick="logSave(${isNew?"'new'":r.rowNo})">💾 ${isNew?'추가':'저장'}</button>
   ${isNew?'':`<button class="main" style="background:#b42318" onclick="logDelete(${r.rowNo})">🗑 이 기록 삭제</button>`}
   <button class="main" style="background:#888" onclick="adminEditRow=null;render()">취소</button></div>`;
+}
+const pad2 = n => String(n).padStart(2,"0");
+// 같은 차량에서 이 날짜·시간 직전의 기록 (없으면 null)
+function prevRecOf(car,m,d,st){
+  const nk = pad2(m||0)+pad2(d||0)+(st||"00:00");
+  let best=null, bk="";
+  adminRecs.forEach(r=>{
+    if(r.car!==car) return;
+    const k = pad2(r.m)+pad2(r.d)+(r.st||"00:00");
+    if(k<=nk && (best===null || k>=bk)){ best=r; bk=k; }
+  });
+  return best;
+}
+function kmCheck(){
+  const box=$("#kmBox"); if(!box) return;
+  const car=$("#f_car").value, m=$("#f_m").value, d=$("#f_d").value, st=$("#f_st").value.trim(), odoS=$("#f_odoS").value.trim();
+  const prev=prevRecOf(car,m,d,st);
+  let msg = (!prev || !prev.odoE) ? "이 차량의 직전 기록이 없습니다." : `직전 도착 <b>${Number(prev.odoE).toLocaleString()}km</b> (${esc(prev.m)}/${esc(prev.d)} ${esc(prev.en)} · ${esc(prev.driver)})`;
+  if(prev && prev.odoE && odoS){
+    const diff = +odoS - Number(prev.odoE);
+    msg += diff===0 ? " → ✅ 출발 계기판이 일치합니다"
+         : diff>0 ? ` → ⚠️ <b>${diff.toLocaleString()}km 차이</b> (그 사이 운행이 기록되지 않았을 수 있습니다)`
+         : ` → ❌ 직전보다 ${(-diff).toLocaleString()}km 적습니다`;
+  }
+  const all = CARS.map(c=>{ const x=prevRecOf(c.n,12,31,"23:59"); return `${esc(c.n)} ${x&&x.odoE?Number(x.odoE).toLocaleString():'-'}km`; }).join(" · ");
+  box.innerHTML = `${msg}<div class="lbl" style="margin-top:6px">차량별 마지막 km: ${all}</div>`;
 }
 function calcDist(){
   const s=+$("#f_odoS").value, e=+$("#f_odoE").value;
@@ -527,6 +563,13 @@ async function logSave(key){
   if(!v.people || +v.people<1) return err.textContent="탑승인원을 입력해 주세요.";
   if(!v.dest) return err.textContent="행선지를 입력해 주세요.";
   if(v.odoS && v.odoE && +v.odoE<=+v.odoS) return err.textContent="도착 계기판은 출발 계기판보다 커야 합니다.";
+  if(isNew && v.odoS){
+    const prev=prevRecOf(car,v.m,v.d,v.st);
+    if(prev && prev.odoE){
+      const diff=+v.odoS-Number(prev.odoE);
+      if(diff!==0 && !confirm(`직전 도착 계기판과 ${Math.abs(diff).toLocaleString()}km ${diff>0?'차이가 있습니다 (사이 운행 누락 가능).':'적습니다.'}\n그대로 추가할까요?`)) return;
+    }
+  }
   const dist = (v.odoS && v.odoE) ? String(+v.odoE-+v.odoS) : "";
   const values=[v.m,v.d,v.driver,v.people,v.dest,v.purpose,v.st,v.en,v.odoS,v.odoE,dist,v.fix,v.gauge];
   try{
@@ -558,15 +601,13 @@ function setSignCount(n){
 }
 function printSetCard(){
   ensurePrintDraft(); const d=adminPrintDraft;
-  return `<div class="card"><b style="font-size:calc(17px * var(--k))">✍️ 결재 라인 · 기관명</b>
-  <div class="fgrid">
-  <label>결재 라인 인원<select onchange="setSignCount(this.value)"><option value="2" ${d.signCount==2?'selected':''}>2명</option><option value="3" ${d.signCount==3?'selected':''}>3명</option><option value="4" ${d.signCount==4?'selected':''}>4명</option></select></label>
+  return `<div class="card"><b style="font-size:calc(17px * var(--k))">✍️ 결재 라인</b>
+  <div class="signrow">
+    <select class="cnt" onchange="setSignCount(this.value)">${[2,3,4].map(n=>`<option value="${n}" ${d.signCount==n?'selected':''}>${n}명</option>`).join("")}</select>
+    ${d.sign.map((x,i)=>`<input class="tt" value="${esc(x.t)}" placeholder="직책" oninput="adminPrintDraft.sign[${i}].t=this.value">`).join("")}
   </div>
-  <p class="lbl" style="margin-top:12px">결재자는 목록에서 고르거나 직접 입력합니다. 직책은 바꿀 수 있습니다.</p>
-  <datalist id="staffList">${DRIVERS.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
-  <div class="sgset">${d.sign.map((x,i)=>`<div class="sgrow"><input value="${esc(x.t)}" placeholder="직책" oninput="adminPrintDraft.sign[${i}].t=this.value"><input value="${esc(x.n)}" list="staffList" placeholder="이름 선택 또는 입력" oninput="adminPrintDraft.sign[${i}].n=this.value"></div>`).join("")}</div>
   <div class="err" id="err"></div>
-  <button class="main g" onclick="savePrintCfg()">💾 결재·기관 설정 저장</button></div>`;
+  <button class="main g" onclick="savePrintCfg()">💾 결재 라인 저장</button></div>`;
 }
 async function savePrintCfg(){
   const err=$("#err"); err.textContent=""; ensurePrintDraft(); const d=adminPrintDraft;
@@ -599,8 +640,7 @@ function carPages(c){
 }
 function pageHtml(c,page,pc,sign){
   return `<div class="pg">
-  <div class="ph"><span class="pt">차량운행 및 정비일지</span>
-    <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)}</span>${sign}</div>
+  <div class="ph"><div class="phl"><div class="pt">차량운행 및 정비일지</div><div class="pcar">차량번호 ${esc(c.p)} · 차종 ${esc(c.n)}</div></div>${sign}</div>
   <div class="pno">NO. ${esc(page.label)}</div>
   <table class="pt2"><tr><th rowspan="2">월</th><th rowspan="2">일</th><th rowspan="2">운전자</th><th rowspan="2">탑승<br>인원</th><th rowspan="2">행선지</th><th rowspan="2">목적</th><th colspan="2">운행시간</th><th colspan="3">운행거리(km)</th><th rowspan="2">차량정비·주유</th><th rowspan="2">잔유량</th></tr>
   <tr><th>출발</th><th>도착</th><th>출발</th><th>도착</th><th>주행거리</th></tr>
@@ -627,7 +667,7 @@ function adminPrintView(){
   if(adminRecs===null) return loadingCard();
   if(!adminCar && CARS.length) adminCar="__ALL__";
   const pc=adminPrintDraft || adminPrintCfg || defPrintCfg();
-  const sign=`<table class="sg"><tr>${pc.sign.map(x=>`<th>${esc(x.t)}</th>`).join("")}</tr><tr>${pc.sign.map(x=>`<td class="sgn">${esc(x.n)}</td>`).join("")}</tr></table>`;
+  const sign=`<table class="sg"><tr>${pc.sign.map(x=>`<th>${esc(x.t)}</th>`).join("")}</tr><tr>${pc.sign.map(()=>`<td class="sgn"></td>`).join("")}</tr></table>`;
   const isAll = adminCar==="__ALL__";
   const targets = isAll ? CARS : CARS.filter(x=>x.n===adminCar);
   let html="", picked=0;
