@@ -157,7 +157,7 @@ body.pc .head{margin-bottom:6px}
 .ph{align-items:flex-start;flex-wrap:nowrap}
 .phl{flex:1;min-width:0}
 .pt{font-size:32px;font-weight:800;width:auto;line-height:1.2}
-.pcar{font-size:24px;margin-top:4px;line-height:1.3}
+.pcar{font-size:12px;margin-top:4px;line-height:1.3}
 .kmbox{margin-top:12px;padding:10px 12px;background:#f6f4f0;border-radius:10px;font-size:14px;line-height:1.7}
 .signrow{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;margin-top:12px}
 .signrow .cnt{width:120px;flex:0 0 120px;margin-top:0;font-size:calc(16px * var(--k))}
@@ -167,6 +167,7 @@ body.pc .head{margin-bottom:6px}
 .pkl{display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid #eee}
 .pkl .pk{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
 .pkl .pk input{width:18px;height:18px;margin:0}
+.selsum{margin-top:12px;padding:12px 14px;background:#e9edff;border-radius:10px;font-size:15px;line-height:1.7;color:#1f1f1f}
 </style>
 </head>
 <body>
@@ -420,7 +421,7 @@ function toggleFull(){
 let adminPin="", adminTab="log", adminDraft=null, adminRecs=null, adminMaint=null, adminCar="", adminEditRow=null, adminEditMaint=null;
 function post(d){ return fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(d)}).then(r=>r.json()); }
 function loadingCard(){ return `<div class="card empty" style="margin-top:12px">불러오는 중...</div>`; }
-function openAdmin(){ view="admin"; adminPin=""; adminDraft=null; adminRecs=null; adminMaint=null; adminTab="log"; adminCar=""; adminEditRow=null; adminEditMaint=null; adminOff={}; adminPrefill=null; render(); }
+function openAdmin(){ view="admin"; adminPin=""; adminDraft=null; adminRecs=null; adminMaint=null; adminTab="log"; adminCar=""; adminEditRow=null; adminEditMaint=null; adminOn={}; adminPrefill=null; render(); }
 function adminView(){
   if(!adminPin) return adminGate();
   if(!adminDraft) adminDraft={cars:CARS.map(c=>({n:c.n,p:c.p||""})), drivers:[...DRIVERS]};
@@ -653,21 +654,26 @@ function pageHtml(c,page,pc,sign){
   ${page.rows.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}</td><td>${esc(r.d)}</td><td>${esc(r.driver)}</td><td>${esc(r.people)}</td><td>${esc(r.dest)}</td><td>${esc(r.purpose)}</td><td>${esc(r.st)}</td><td>${esc(r.en)}</td><td>${esc(r.odoS)}</td><td>${esc(r.odoE)}</td><td>${esc(r.dist)}</td><td>${esc(r.fix)}</td><td>${esc(r.gauge)}</td></tr>`).join("")}
   </table></div>`;
 }
-let adminPrefill=null, adminOff={};
+let adminPrefill=null, adminOn={};
 function pageKey(car,label){ return car+"|"+label; }
-function togglePage(key){ adminOff[key]=!adminOff[key]; render(); }
+function togglePage(key){ adminOn[key]=!adminOn[key]; render(); }
 function setAllPages(on){
-  adminOff={};
-  if(!on) CARS.forEach(c=>{ if(!adminCar || adminCar==="__ALL__" || adminCar===c.n) carPages(c).forEach(pg=>{ adminOff[pageKey(c.n,pg.label)]=true; }); });
+  adminOn={};
+  if(on) CARS.forEach(c=>{ if(!adminCar || adminCar==="__ALL__" || adminCar===c.n) carPages(c).forEach(pg=>{ adminOn[pageKey(c.n,pg.label)]=true; }); });
   render();
+}
+function selList(targets){
+  const sel=[];
+  targets.forEach(c=>carPages(c).forEach(pg=>{ if(adminOn[pageKey(c.n,pg.label)]) sel.push(`${esc(c.n)} ${esc(pg.label)}`); }));
+  return sel.length ? sel.join(" · ") : '<span class="lbl">아직 고른 쪽이 없습니다</span>';
 }
 function pagePicker(targets){
   const blocks=targets.map(c=>{
     const pages=carPages(c);
     if(!pages.length) return "";
-    const on=pages.filter(pg=>!adminOff[pageKey(c.n,pg.label)]).length;
+    const on=pages.filter(pg=>adminOn[pageKey(c.n,pg.label)]).length;
     return `<details class="pkd"><summary><b>${esc(c.n)}</b> <span class="lbl">${on} / ${pages.length}쪽 선택 (펼쳐서 고르기)</span></summary>
-      <div class="pkl">${pages.map(pg=>{ const k=pageKey(c.n,pg.label); return `<label class="pk"><input type="checkbox" ${adminOff[k]?'':'checked'} onchange="togglePage('${esc(k)}')"> <b>${esc(pg.label)}</b> <span class="lbl">(${pg.rows.length}줄)</span></label>`; }).join("")}</div></details>`;
+      <div class="pkl">${pages.map(pg=>{ const k=pageKey(c.n,pg.label); return `<label class="pk"><input type="checkbox" ${adminOn[k]?'checked':''} onchange="togglePage('${esc(k)}')"> <b>${esc(pg.label)}</b> <span class="lbl">(${pg.rows.length}줄)</span></label>`; }).join("")}</div></details>`;
   }).join("");
   return blocks || '<p class="lbl">인쇄할 기록이 없습니다.</p>';
 }
@@ -680,7 +686,7 @@ function adminPrintView(){
   const targets = isAll ? CARS : CARS.filter(x=>x.n===adminCar);
   let html="", picked=0;
   targets.forEach(c=>{
-    const pages=carPages(c).filter(pg=>!adminOff[pageKey(c.n,pg.label)]);
+    const pages=carPages(c).filter(pg=>adminOn[pageKey(c.n,pg.label)]);
     if(isAll && !pages.length) return;
     if(!carPages(c).length && !isAll) pages.push({label:`${new Date().getFullYear()}-01`, rows:[]});
     picked+=pages.length;
@@ -698,6 +704,7 @@ function adminPrintView(){
   <table class="tb"><tr><th>차량</th><th>기록</th><th>쪽 수</th><th>상태</th></tr>${status}</table>
   <div style="margin-top:14px"><b>인쇄할 쪽 고르기</b> <button class="mini" onclick="setAllPages(true)">전체 선택</button> <button class="mini" onclick="setAllPages(false)">전체 해제</button></div>
   ${pagePicker(targets)}
+  <div class="selsum"><b>선택된 쪽 (${picked})</b> ${selList(targets)}</div>
   <button class="main pu" onclick="window.print()">🖨 선택한 ${picked}쪽 인쇄 / PDF 저장</button>
   <p class="lbl" style="margin-top:8px;line-height:1.6">번호는 기록의 저장 연도 기준으로 붙고, 연도가 바뀌면 01부터 다시 시작합니다. 체크를 빼면 그 쪽은 인쇄되지 않습니다. 노란색 행은 계기판 차이가 있는 기록입니다. 인쇄 창에서 "배경 그래픽"을 켜 주세요.</p></div>
   <div id="printArea">${html}</div>`;
