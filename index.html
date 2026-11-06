@@ -91,7 +91,7 @@ input,select{width:100%;padding:13px;border:1.5px solid #dcd8d1;border-radius:14
 .edit{background:#e9edff;color:#3b5bdb;padding:3px 10px;font-size:calc(12px * var(--k));font-weight:700;border-radius:8px;margin-left:8px}
 .x{background:#fee2e2;color:#b91c1c;padding:6px 10px;font-size:calc(12px * var(--k));font-weight:700;border-radius:10px}
 .toast{position:fixed;left:50%;top:40%;transform:translateX(-50%);background:#2f9e5f;color:#fff;padding:18px 28px;border-radius:16px;font-size:calc(18px * var(--k));font-weight:800;display:none;z-index:9;box-shadow:0 6px 20px #0004}
-.arow{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:8px}
+.arow{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-top:8px}
 .arow1{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:8px}
 .arow input,.arow1 input,#pinIn{font-size:calc(16px * var(--k));margin-top:0}
 .arow button,.arow1 button{padding:8px 12px;background:#fdeaea;color:#b42318;font-weight:700;border-radius:8px;font-size:calc(14px * var(--k))}
@@ -179,6 +179,7 @@ body.pc .head{margin-bottom:6px}
 .mtb th,.mtb td{border:1px solid #000;padding:6px 4px;text-align:center}
 .mpage{background:#fff;padding:8px;page-break-after:always}
 .mpage:last-child{page-break-after:auto}
+@media print{ .arow{display:none} }
 </style>
 </head>
 <body>
@@ -435,7 +436,7 @@ function loadingCard(){ return `<div class="card empty" style="margin-top:12px">
 function openAdmin(){ view="admin"; adminPin=""; adminDraft=null; adminRecs=null; adminMaint=null; adminTab="log"; adminCar=""; adminEditRow=null; adminEditMaint=null; adminOn={}; adminPrefill=null; render(); }
 function adminView(){
   if(!adminPin) return adminGate();
-  if(!adminDraft) adminDraft={cars:CARS.map(c=>({n:c.n,p:c.p||""})), drivers:[...DRIVERS]};
+  if(!adminDraft) adminDraft={cars:CARS.map(c=>({n:c.n,p:c.p||"",d:c.d||""})), drivers:[...DRIVERS]};
   const tabs=[["log","📋 운행일지"],["print","🖨 일지 인쇄"],["maint","🔧 정비기록"],["cfg","🚗 차량·운전자"]];
   const body = adminTab==="log" ? adminLogView() : adminTab==="print" ? adminPrintView() : adminTab==="maint" ? adminMaintView() : adminCfgView();
   $("#app").innerHTML = `<div class="topbar"><button class="back" onclick="goHome()">← 돌아가기</button><button class="back" onclick="toggleFull()">⛶ 전체화면</button></div>
@@ -758,7 +759,7 @@ function mPrintHtml(targets){
   return targets.map(c=>{
     const rows=adminMaint.filter(m=>m.car===c.n);
     return `<div class="mpage"><div class="mhead">차량정비 관리대장</div>
-    <table class="minfo"><tr><td style="width:30%">차종: <b>${esc(c.n)}</b></td><td style="width:40%">차량번호: <b>${esc(c.p)}</b></td><td>구입일: ______________</td></tr></table>
+    <table class="minfo"><tr><td style="width:30%">차종: <b>${esc(c.n)}</b></td><td style="width:40%">차량번호: <b>${esc(c.p)}</b></td><td>구입일: ${c.d?esc(c.d):'______________'}</td></tr></table>
     <table class="mtb"><tr><th>구분</th><th>일시</th><th>정비소</th><th>담당</th><th>비용</th><th>비고</th></tr>
     ${rows.map(m=>`<tr><td>${esc(m.kind)}</td><td>${esc(m.date)}</td><td>${esc(m.shop)}</td><td>${esc(m.who)}</td><td>${esc(m.cost)}</td><td>${esc(m.memo)}</td></tr>`).join("")}
     </table></div>`;
@@ -805,8 +806,8 @@ async function maintDelete(){
 /* 차량·운전자 목록 */
 function adminCfgView(){
   return `<div class="card"><b>🚗 차량</b>
-  ${adminDraft.cars.map((c,i)=>`<div class="arow"><input value="${esc(c.n)}" placeholder="차량명" oninput="adminDraft.cars[${i}].n=this.value"><input value="${esc(c.p)}" placeholder="번호판" oninput="adminDraft.cars[${i}].p=this.value"><button onclick="adminDel('cars',${i})">삭제</button></div>`).join("")}
-  <button class="main pu" onclick="adminDraft.cars.push({n:'',p:''});render()">+ 차량 추가</button>
+  ${adminDraft.cars.map((c,i)=>`<div class="arow"><input value="${esc(c.n)}" placeholder="차량명" oninput="adminDraft.cars[${i}].n=this.value"><input value="${esc(c.p)}" placeholder="번호판" oninput="adminDraft.cars[${i}].p=this.value"><input value="${esc(c.d||'')}" placeholder="구입일 (예: 2023.05.22)" oninput="adminDraft.cars[${i}].d=this.value"><button onclick="adminDel('cars',${i})">삭제</button></div>`).join("")}
+  <button class="main pu" onclick="adminDraft.cars.push({n:'',p:'',d:''});render()">+ 차량 추가</button>
   <b style="display:block;margin-top:18px">👤 운전자</b>
   ${adminDraft.drivers.map((n,i)=>`<div class="arow1"><input value="${esc(n)}" placeholder="이름" oninput="adminDraft.drivers[${i}]=this.value"><button onclick="adminDel('drivers',${i})">삭제</button></div>`).join("")}
   <button class="main pu" onclick="adminDraft.drivers.push('');render()">+ 운전자 추가</button>
@@ -815,7 +816,7 @@ function adminCfgView(){
 function adminDel(kind,i){ adminDraft[kind].splice(i,1); render(); }
 async function adminSave(){
   const err=$("#err"); err.textContent="";
-  const cars=adminDraft.cars.map(c=>({n:(c.n||"").trim(),p:(c.p||"").trim()})).filter(c=>c.n);
+  const cars=adminDraft.cars.map(c=>({n:(c.n||"").trim(),p:(c.p||"").trim(),d:(c.d||"").trim()})).filter(c=>c.n);
   const drivers=adminDraft.drivers.map(s=>(s||"").trim()).filter(Boolean);
   if(!cars.length) return err.textContent="차량을 한 대 이상 입력해 주세요.";
   if(!drivers.length) return err.textContent="운전자를 한 명 이상 입력해 주세요.";
