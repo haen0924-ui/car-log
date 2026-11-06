@@ -440,7 +440,7 @@ function adminLogView(){
   if(adminRecs===null) return loadingCard();
   const rows=adminRecs.filter(r=>!adminCar||r.car===adminCar).slice().reverse();
   const list=`<div class="card">${carSelect(true)}
-  <button class="main pu" onclick="adminLoad('records')">↻ 새로고침</button>
+  <button class="main g" onclick="logNew()">➕ 기록 추가</button> <button class="main pu" onclick="adminLoad('records')">↻ 새로고침</button>
   <div class="scroll"><table class="tb"><tr><th>날짜</th><th>차량</th><th>운전자</th><th>행선지</th><th>거리</th><th></th></tr>
   ${rows.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}/${esc(r.d)}</td><td>${esc(r.car)}</td><td>${esc(r.driver)}</td><td>${esc(r.dest)}</td><td>${esc(r.dist)}</td><td><button class="mini" onclick="logEdit(${r.rowNo})">수정</button></td></tr>`).join("")||'<tr><td colspan="6">기록이 없습니다</td></tr>'}
   </table></div></div>`;
@@ -448,12 +448,20 @@ function adminLogView(){
   return `<div class="split"><div>${list}</div><div>${right}</div></div>`;
 }
 function logEdit(rowNo){ adminEditRow=rowNo; render(); }
+function logNew(){ adminEditRow="new"; render(); }
 function logEditForm(){
-  const r=adminRecs.find(x=>x.rowNo===adminEditRow);
+  const isNew = adminEditRow==="new", now=new Date();
+  const r = isNew
+    ? {rowNo:"new", car:(adminCar && adminCar!=="__ALL__") ? adminCar : (CARS[0]?CARS[0].n:""), m:now.getMonth()+1, d:now.getDate(), driver:DRIVERS[0]||"", people:1, dest:"", purpose:"업무", st:"", en:"", odoS:"", odoE:"", dist:"", fix:"", gauge:""}
+    : adminRecs.find(x=>x.rowNo===adminEditRow);
   if(!r){ adminEditRow=null; return `<div class="card empty" style="margin-top:0">기록을 찾을 수 없습니다. 새로고침 해 주세요.</div>`; }
   const dr = (!r.driver || DRIVERS.includes(r.driver)) ? DRIVERS : [r.driver, ...DRIVERS];
-  return `<div class="card"><b style="font-size:calc(17px * var(--k))">기록 수정 · ${esc(r.car)} · ${esc(r.m)}/${esc(r.d)}</b>
+  const carOpts = CARS.map(c=>`<option ${c.n===r.car?'selected':''}>${esc(c.n)}</option>`).join("");
+  return `<div class="card"><b style="font-size:calc(17px * var(--k))">${isNew?'➕ 기록 추가':'기록 수정 · '+esc(r.car)+' · '+esc(r.m)+'/'+esc(r.d)}</b>
   <div class="fgrid">
+  <label>차량${isNew?`<select id="f_car">${carOpts}</select>`:`<input value="${esc(r.car)}" readonly>`}</label>
+  <label>월<input id="f_m" type="number" min="1" max="12" value="${esc(r.m)}"></label>
+  <label>일<input id="f_d" type="number" min="1" max="31" value="${esc(r.d)}"></label>
   <label>운전자<select id="f_driver">${dr.map(n=>`<option ${n===r.driver?'selected':''}>${esc(n)}</option>`).join("")}</select></label>
   <label>탑승인원<input id="f_people" type="number" min="1" value="${esc(r.people)}"></label>
   <label>행선지<input id="f_dest" value="${esc(r.dest)}"></label>
@@ -467,25 +475,31 @@ function logEditForm(){
   <label>잔유량<input id="f_gauge" value="${esc(r.gauge)}"></label>
   </div>
   <div class="err" id="err"></div>
-  <button class="main g" onclick="logSave(${r.rowNo})">💾 저장</button>
-  <button class="main" style="background:#b42318" onclick="logDelete(${r.rowNo})">🗑 이 기록 삭제</button>
+  <button class="main g" onclick="logSave(${isNew?"'new'":r.rowNo})">💾 ${isNew?'추가':'저장'}</button>
+  ${isNew?'':`<button class="main" style="background:#b42318" onclick="logDelete(${r.rowNo})">🗑 이 기록 삭제</button>`}
   <button class="main" style="background:#888" onclick="adminEditRow=null;render()">취소</button></div>`;
 }
 function calcDist(){
   const s=+$("#f_odoS").value, e=+$("#f_odoE").value;
   $("#f_dist").value = (s && e && e>s) ? String(e-s) : "";
 }
-async function logSave(rowNo){
-  const r=adminRecs.find(x=>x.rowNo===rowNo), err=$("#err"); err.textContent="";
-  const v={driver:$("#f_driver").value, people:$("#f_people").value.trim(), dest:$("#f_dest").value.trim(), purpose:$("#f_purpose").value.trim(), st:$("#f_st").value.trim(), en:$("#f_en").value.trim(), odoS:$("#f_odoS").value.trim(), odoE:$("#f_odoE").value.trim(), fix:$("#f_fix").value.trim(), gauge:$("#f_gauge").value.trim()};
+async function logSave(key){
+  const isNew = key==="new", rowNo = isNew ? null : Number(key);
+  const r = isNew ? null : adminRecs.find(x=>x.rowNo===rowNo);
+  const err=$("#err"); err.textContent="";
+  const car = isNew ? $("#f_car").value : r.car;
+  const v={m:$("#f_m").value.trim(), d:$("#f_d").value.trim(), driver:$("#f_driver").value, people:$("#f_people").value.trim(), dest:$("#f_dest").value.trim(), purpose:$("#f_purpose").value.trim(), st:$("#f_st").value.trim(), en:$("#f_en").value.trim(), odoS:$("#f_odoS").value.trim(), odoE:$("#f_odoE").value.trim(), fix:$("#f_fix").value.trim(), gauge:$("#f_gauge").value.trim()};
+  if(!(+v.m>=1 && +v.m<=12) || !(+v.d>=1 && +v.d<=31)) return err.textContent="월과 일을 바르게 입력해 주세요.";
   if(!v.people || +v.people<1) return err.textContent="탑승인원을 입력해 주세요.";
   if(!v.dest) return err.textContent="행선지를 입력해 주세요.";
   if(v.odoS && v.odoE && +v.odoE<=+v.odoS) return err.textContent="도착 계기판은 출발 계기판보다 커야 합니다.";
   const dist = (v.odoS && v.odoE) ? String(+v.odoE-+v.odoS) : "";
+  const values=[v.m,v.d,v.driver,v.people,v.dest,v.purpose,v.st,v.en,v.odoS,v.odoE,dist,v.fix,v.gauge];
   try{
-    const j=await post({action:"log_update", pin:adminPin, rowNo, car:r.car, values:[r.m,r.d,v.driver,v.people,v.dest,v.purpose,v.st,v.en,v.odoS,v.odoE,dist,v.fix,v.gauge]});
+    const j = isNew ? await post({action:"log_add", pin:adminPin, car, values})
+                    : await post({action:"log_update", pin:adminPin, rowNo, car, values});
     if(!j.ok) throw new Error(j.error);
-    adminEditRow=null; toast("수정되었습니다"); await adminLoad("records");
+    adminEditRow=null; toast(isNew?"추가되었습니다":"수정되었습니다"); await adminLoad("records");
   }catch(e){ err.textContent=e.message||"저장에 실패했습니다. 인터넷 연결을 확인해 주세요."; }
 }
 async function logDelete(rowNo){
