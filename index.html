@@ -98,7 +98,7 @@ input,select{width:100%;padding:13px;border:1.5px solid #dcd8d1;border-radius:14
 .tb{width:100%;border-collapse:collapse;font-size:calc(14px * var(--k));margin-top:12px}
 .tb td,.tb th{border-bottom:1px solid #ddd;padding:6px 4px;text-align:left}
 .tb tr.flag td{background:#fff3cd}
-@media print{ @page{size:A4 portrait;margin:12mm} body *{visibility:hidden} #printArea,#printArea *{visibility:visible} #printArea{position:absolute;left:0;top:0;width:100%} .noprint{display:none} }
+@media print{ @page{size:A4 portrait;margin:12mm} #app{display:none!important} #printHost{display:block} .noprint{display:none} }
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .fgrid label{font-size:calc(14px * var(--k));display:flex;flex-direction:column;gap:4px;font-weight:700}
 .fgrid input,.fgrid select,.fgrid textarea{font-size:calc(16px * var(--k));margin-top:0;width:100%}
@@ -152,6 +152,7 @@ body.pc .head{margin-bottom:6px}
   @page{size:A4 portrait;margin:12mm}
   .pg{height:273mm;padding:0;border:0;overflow:hidden;box-sizing:border-box;page-break-inside:avoid;display:flex;flex-direction:column;justify-content:center}
   .pt2 td{height:9.5mm}
+  .pt2 tr.blank td{height:9.5mm}
   .pno{margin-top:6mm;margin-bottom:2mm}
 }
 .ph{align-items:flex-start;flex-wrap:nowrap}
@@ -646,7 +647,15 @@ function carPages(c){
       pages.push({label:`${y}-${String(Math.floor(i/20)+1).padStart(2,"0")}`, rows:yr.slice(i,i+20)});
     }
   });
+  if(!pages.length) pages.push({label:`${new Date().getFullYear()}-01`, rows:[]});
   return pages;
+}
+function printPages(){
+  const pa=document.getElementById("printArea"); if(!pa) return;
+  const host=document.createElement("div"); host.id="printHost"; host.innerHTML=pa.innerHTML;
+  document.body.appendChild(host);
+  window.print();
+  host.remove();
 }
 function pageHtml(c,page,pc,sign){
   return `<div class="pg">
@@ -655,6 +664,7 @@ function pageHtml(c,page,pc,sign){
   <table class="pt2"><tr><th rowspan="2">월</th><th rowspan="2">일</th><th rowspan="2">운전자</th><th rowspan="2">탑승<br>인원</th><th rowspan="2">행선지</th><th rowspan="2">목적</th><th colspan="2">운행시간</th><th colspan="3">운행거리(km)</th><th rowspan="2">차량정비·주유</th><th rowspan="2">잔유량</th></tr>
   <tr><th>출발</th><th>도착</th><th>출발</th><th>도착</th><th>주행거리</th></tr>
   ${page.rows.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}</td><td>${esc(r.d)}</td><td>${esc(r.driver)}</td><td>${esc(r.people)}</td><td>${esc(r.dest)}</td><td>${esc(r.purpose)}</td><td>${esc(r.st)}</td><td>${esc(r.en)}</td><td>${esc(r.odoS)}</td><td>${esc(r.odoE)}</td><td>${esc(r.dist)}</td><td>${esc(r.fix)}</td><td>${esc(r.gauge)}</td></tr>`).join("")}
+  ${Array.from({length:Math.max(0,20-page.rows.length)}).map(()=>`<tr class="blank"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join("")}
   </table></div>`;
 }
 let adminPrefill=null, adminOn={};
@@ -713,7 +723,7 @@ function adminPrintView(){
     <div class="card">
       <b>선택된 쪽 (${picked})</b>
       <div class="selbox">${vlist}</div>
-      <button class="main pu" onclick="window.print()">🖨 선택한 ${picked}쪽 인쇄 / PDF 저장</button>
+      <button class="main pu" onclick="printPages()">🖨 선택한 ${picked}쪽 인쇄 / PDF 저장</button>
       <p class="lbl" style="margin-top:8px;line-height:1.6">번호는 기록의 저장 연도 기준으로 붙고, 연도가 바뀌면 01부터 다시 시작합니다. 노란색 행은 계기판 차이가 있는 기록입니다. 인쇄 창에서 "배경 그래픽"을 켜 주세요.</p>
     </div>
   </div>
@@ -733,7 +743,7 @@ function adminMaintView(){
   <table class="tb"><tr><th>차량</th><th>일시</th><th>구분</th><th>정비소</th><th>담당</th><th>비용</th><th>내용</th><th></th></tr>
   ${rows.map(m=>`<tr><td>${esc(m.car)}</td><td>${esc(m.date)}</td><td>${esc(m.kind)}</td><td>${esc(m.shop)}</td><td>${esc(m.who)}</td><td>${esc(m.cost)}</td><td>${esc(m.memo)}</td><td><button class="mini" onclick="maintEdit('${esc(m.id)}')">수정</button></td></tr>`).join("")||'<tr><td colspan="8">정비 기록이 없습니다</td></tr>'}
   </table>
-  <button class="main pu" onclick="window.print()">🖨 목록 인쇄</button></div>
+  <button class="main pu" onclick="printPages()">🖨 목록 인쇄</button></div>
   <div id="printArea"><table class="tb"><tr><th>차량</th><th>일시</th><th>구분</th><th>정비소</th><th>담당</th><th>비용</th><th>내용</th></tr>
   ${rows.map(m=>`<tr><td>${esc(m.car)}</td><td>${esc(m.date)}</td><td>${esc(m.kind)}</td><td>${esc(m.shop)}</td><td>${esc(m.who)}</td><td>${esc(m.cost)}</td><td>${esc(m.memo)}</td></tr>`).join("")}</table></div>`;
 }
