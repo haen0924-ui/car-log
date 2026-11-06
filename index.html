@@ -138,6 +138,9 @@ body.pc .fgrid{grid-template-columns:1fr 1fr 1fr}
 .ph .no{font-weight:800;font-size:14px;color:#000}
 .sg{white-space:nowrap}
 .sg th,.sg td{white-space:nowrap;min-width:72px;padding:2px 8px}
+.pno{font-weight:800;font-size:13px;color:#000;margin-top:6px;text-align:left}
+body.pc .gate{max-width:440px;margin:90px auto 0}
+body.pc .gate .card{margin-top:0}
 </style>
 </head>
 <body>
@@ -405,11 +408,11 @@ function adminView(){
 }
 function adminGate(){
   $("#app").innerHTML = `<button class="back" onclick="goHome()">← 돌아가기</button>
-  <div class="head"><h1>관리자<span>화면</span></h1></div>
+  <div class="gate"><div class="head" style="text-align:center"><h1>관리자<span>화면</span></h1></div>
   <div class="card"><b style="font-size:calc(17px * var(--k))">관리자 번호를 입력하세요</b>
   <p class="lbl" style="margin-top:6px;line-height:1.6">처음 접속할 때 입력한 번호가 관리자 번호로 저장됩니다. 지회 직원에게는 알리지 마세요.</p>
   <input type="password" id="pinIn" inputmode="numeric" placeholder="숫자 4~8자리">
-  <div class="err" id="err"></div><button class="main" id="pinBtn" onclick="adminEnter()">확인</button></div>${FOOT}`;
+  <div class="err" id="err"></div><button class="main" id="pinBtn" onclick="adminEnter()">확인</button></div></div>${FOOT}`;
 }
 async function adminEnter(){
   const p=$("#pinIn").value.trim(), err=$("#err"), btn=$("#pinBtn");
@@ -552,7 +555,8 @@ function printCarSelect(){
 function pageHtml(c,pg,pi,total,pc,sign){
   return `<div class="pg">
   <div class="ph"><span class="pt">차량운행 및 정비일지</span>
-    <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)}</span><span class="no">NO. ${new Date().getFullYear()}-${String(pi+1).padStart(2,"0")}</span>${sign}</div>
+    <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)}</span>${sign}</div>
+  <div class="pno">NO. ${new Date().getFullYear()}-${String(pi+1).padStart(2,"0")}</div>
   <table class="pt2"><tr><th rowspan="2">월</th><th rowspan="2">일</th><th rowspan="2">운전자</th><th rowspan="2">탑승<br>인원</th><th rowspan="2">행선지</th><th rowspan="2">목적</th><th colspan="2">운행시간</th><th colspan="3">운행거리(km)</th><th rowspan="2">차량정비·주유</th><th rowspan="2">잔유량</th></tr>
   <tr><th>출발</th><th>도착</th><th>출발</th><th>도착</th><th>주행거리</th></tr>
   ${pg.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}</td><td>${esc(r.d)}</td><td>${esc(r.driver)}</td><td>${esc(r.people)}</td><td>${esc(r.dest)}</td><td>${esc(r.purpose)}</td><td>${esc(r.st)}</td><td>${esc(r.en)}</td><td>${esc(r.odoS)}</td><td>${esc(r.odoE)}</td><td>${esc(r.dist)}</td><td>${esc(r.fix)}</td><td>${esc(r.gauge)}</td></tr>`).join("")}
