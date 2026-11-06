@@ -172,6 +172,13 @@ body.pc .head{margin-bottom:6px}
 .pcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
 .selbox{margin:10px 0 14px;max-height:calc(100vh - 380px);min-height:120px;overflow:auto}
 .selrow{padding:9px 10px;border-bottom:1px solid #eee;font-size:15px}
+.mhead{text-align:center;font-size:30px;font-weight:700;margin:6mm 0 4mm;color:#000}
+.minfo{width:100%;border-collapse:collapse;font-size:14px;background:#f2f2f2;color:#000}
+.minfo td{border:1px solid #000;padding:6px 8px}
+.mtb{width:100%;border-collapse:collapse;font-size:12px;margin-top:6mm;color:#000}
+.mtb th,.mtb td{border:1px solid #000;padding:6px 4px;text-align:center}
+.mpage{background:#fff;padding:8px;page-break-after:always}
+.mpage:last-child{page-break-after:auto}
 </style>
 </head>
 <body>
@@ -737,6 +744,7 @@ function adminMaintView(){
   if(adminMaint===null) return loadingCard();
   if(adminEditMaint!==null) return maintForm();
   const rows=adminMaint.filter(m=>!adminCar||m.car===adminCar);
+  const targets=(adminCar && adminCar!=="__ALL__") ? CARS.filter(x=>x.n===adminCar) : CARS;
   const defCar = adminCar || (CARS[0]?CARS[0].n:"");
   return `<div class="card noprint">${carSelect(true)}
   <button class="main g" onclick="adminEditMaint={id:'',car:'${esc(defCar)}',date:'',kind:'',shop:'',who:'',cost:'',memo:''};render()">+ 정비 기록 추가</button>
@@ -744,8 +752,17 @@ function adminMaintView(){
   ${rows.map(m=>`<tr><td>${esc(m.car)}</td><td>${esc(m.date)}</td><td>${esc(m.kind)}</td><td>${esc(m.shop)}</td><td>${esc(m.who)}</td><td>${esc(m.cost)}</td><td>${esc(m.memo)}</td><td><button class="mini" onclick="maintEdit('${esc(m.id)}')">수정</button></td></tr>`).join("")||'<tr><td colspan="8">정비 기록이 없습니다</td></tr>'}
   </table>
   <button class="main pu" onclick="printPages()">🖨 목록 인쇄</button></div>
-  <div id="printArea"><table class="tb"><tr><th>차량</th><th>일시</th><th>구분</th><th>정비소</th><th>담당</th><th>비용</th><th>내용</th></tr>
-  ${rows.map(m=>`<tr><td>${esc(m.car)}</td><td>${esc(m.date)}</td><td>${esc(m.kind)}</td><td>${esc(m.shop)}</td><td>${esc(m.who)}</td><td>${esc(m.cost)}</td><td>${esc(m.memo)}</td></tr>`).join("")}</table></div>`;
+  <div id="printArea">${mPrintHtml(targets)}</div>`;
+}
+function mPrintHtml(targets){
+  return targets.map(c=>{
+    const rows=adminMaint.filter(m=>m.car===c.n);
+    return `<div class="mpage"><div class="mhead">차량정비 관리대장</div>
+    <table class="minfo"><tr><td style="width:30%">차종: <b>${esc(c.n)}</b></td><td style="width:40%">차량번호: <b>${esc(c.p)}</b></td><td>구입일: ______________</td></tr></table>
+    <table class="mtb"><tr><th>구분</th><th>일시</th><th>정비소</th><th>담당</th><th>비용</th><th>비고</th></tr>
+    ${rows.map(m=>`<tr><td>${esc(m.kind)}</td><td>${esc(m.date)}</td><td>${esc(m.shop)}</td><td>${esc(m.who)}</td><td>${esc(m.cost)}</td><td>${esc(m.memo)}</td></tr>`).join("")}
+    </table></div>`;
+  }).join("");
 }
 function maintEdit(id){ adminEditMaint=adminMaint.find(m=>m.id===id)||null; render(); }
 function maintForm(){
