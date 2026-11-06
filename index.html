@@ -135,6 +135,9 @@ body.pc .fgrid{grid-template-columns:1fr 1fr 1fr}
 .sg td.sgn{height:36px;font-size:12px}
 .pf{display:flex;justify-content:space-between;font-size:11px;color:#000;border-top:1px solid #666;margin-top:8px;padding-top:4px}
 @media print{ .pg .pf{margin-top:10px} }
+.ph .no{font-weight:800;font-size:14px;color:#000}
+.sg{white-space:nowrap}
+.sg th,.sg td{white-space:nowrap;min-width:72px;padding:2px 8px}
 </style>
 </head>
 <body>
@@ -549,12 +552,12 @@ function printCarSelect(){
 function pageHtml(c,pg,pi,total,pc,sign){
   return `<div class="pg">
   <div class="ph"><span class="pt">차량운행 및 정비일지</span>
-    <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)}</span>${sign}</div>
+    <span>차량번호 ${esc(c.p)} · 차종 ${esc(c.n)}</span><span class="no">NO. ${new Date().getFullYear()}-${String(pi+1).padStart(2,"0")}</span>${sign}</div>
   <table class="pt2"><tr><th rowspan="2">월</th><th rowspan="2">일</th><th rowspan="2">운전자</th><th rowspan="2">탑승<br>인원</th><th rowspan="2">행선지</th><th rowspan="2">목적</th><th colspan="2">운행시간</th><th colspan="3">운행거리(km)</th><th rowspan="2">차량정비·주유</th><th rowspan="2">잔유량</th></tr>
   <tr><th>출발</th><th>도착</th><th>출발</th><th>도착</th><th>주행거리</th></tr>
   ${pg.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}</td><td>${esc(r.d)}</td><td>${esc(r.driver)}</td><td>${esc(r.people)}</td><td>${esc(r.dest)}</td><td>${esc(r.purpose)}</td><td>${esc(r.st)}</td><td>${esc(r.en)}</td><td>${esc(r.odoS)}</td><td>${esc(r.odoE)}</td><td>${esc(r.dist)}</td><td>${esc(r.fix)}</td><td>${esc(r.gauge)}</td></tr>`).join("")}
   </table>
-  <div class="pf"><span></span><span>${pi+1} / ${total} 쪽</span></div></div>`;
+  </div>`;
 }
 function adminPrintView(){
   if(adminRecs===null) return loadingCard();
