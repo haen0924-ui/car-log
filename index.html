@@ -161,6 +161,11 @@ body.pc .head{margin-bottom:6px}
 .signrow{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;margin-top:12px}
 .signrow .cnt{width:120px;flex:0 0 120px;margin-top:0;font-size:calc(16px * var(--k))}
 .signrow .tt{flex:1 1 0;min-width:0;margin-top:0;font-size:calc(16px * var(--k))}
+.pkd{background:#fff;border:2px solid #e7e4de;border-radius:10px;margin-top:10px;padding:10px 14px}
+.pkd summary{cursor:pointer;font-size:16px;line-height:1.8}
+.pkl{display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid #eee}
+.pkl .pk{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
+.pkl .pk input{width:18px;height:18px;margin:0}
 </style>
 </head>
 <body>
@@ -659,7 +664,9 @@ function pagePicker(targets){
   const blocks=targets.map(c=>{
     const pages=carPages(c);
     if(!pages.length) return "";
-    return `<div class="pk-car"><b>${esc(c.n)}</b> ${pages.map(pg=>{ const k=pageKey(c.n,pg.label); return `<label class="pk"><input type="checkbox" ${adminOff[k]?'':'checked'} onchange="togglePage('${esc(k)}')"> ${esc(pg.label)} <span class="lbl">(${pg.rows.length}줄)</span></label>`; }).join("")}</div>`;
+    const on=pages.filter(pg=>!adminOff[pageKey(c.n,pg.label)]).length;
+    return `<details class="pkd"><summary><b>${esc(c.n)}</b> <span class="lbl">${on} / ${pages.length}쪽 선택 (펼쳐서 고르기)</span></summary>
+      <div class="pkl">${pages.map(pg=>{ const k=pageKey(c.n,pg.label); return `<label class="pk"><input type="checkbox" ${adminOff[k]?'':'checked'} onchange="togglePage('${esc(k)}')"> <b>${esc(pg.label)}</b> <span class="lbl">(${pg.rows.length}줄)</span></label>`; }).join("")}</div></details>`;
   }).join("");
   return blocks || '<p class="lbl">인쇄할 기록이 없습니다.</p>';
 }
