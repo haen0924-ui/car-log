@@ -168,6 +168,9 @@ body.pc .head{margin-bottom:6px}
 .pkl .pk{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
 .pkl .pk input{width:18px;height:18px;margin:0}
 .selsum{margin-top:12px;padding:12px 14px;background:#e9edff;border-radius:10px;font-size:15px;line-height:1.7;color:#1f1f1f}
+.pcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.selbox{margin:10px 0 14px;max-height:calc(100vh - 380px);min-height:120px;overflow:auto}
+.selrow{padding:9px 10px;border-bottom:1px solid #eee;font-size:15px}
 </style>
 </head>
 <body>
@@ -699,14 +702,23 @@ function adminPrintView(){
     const left = last===0 ? 20 : (last%20===0 ? 0 : 20-(last%20));
     return `<tr><td>${esc(c.n)}</td><td>${n}줄</td><td>${pages.length}쪽</td><td>${left===0?'✅ 20줄 완성 (인쇄 가능)':'다음 쪽까지 '+left+'줄'}</td></tr>`;
   }).join("");
+  const vlist = (()=>{ const sel=[]; targets.forEach(c=>carPages(c).forEach(pg=>{ if(adminOn[pageKey(c.n,pg.label)]) sel.push(`<div class="selrow">${esc(c.n)} · <b>${esc(pg.label)}</b> <span class="lbl">(${pg.rows.length}줄)</span></div>`); })); return sel.length ? sel.join("") : '<p class="lbl">아직 고른 쪽이 없습니다. 왼쪽에서 쪽을 체크해 주세요.</p>'; })();
   return `<div class="noprint">${printSetCard()}</div>
-  <div class="card noprint">${printCarSelect()}
-  <table class="tb"><tr><th>차량</th><th>기록</th><th>쪽 수</th><th>상태</th></tr>${status}</table>
-  <div style="margin-top:14px"><b>인쇄할 쪽 고르기</b> <button class="mini" onclick="setAllPages(true)">전체 선택</button> <button class="mini" onclick="setAllPages(false)">전체 해제</button></div>
-  ${pagePicker(targets)}
-  <div class="selsum"><b>선택된 쪽 (${picked})</b> ${selList(targets)}</div>
-  <button class="main pu" onclick="window.print()">🖨 선택한 ${picked}쪽 인쇄 / PDF 저장</button>
-  <p class="lbl" style="margin-top:8px;line-height:1.6">번호는 기록의 저장 연도 기준으로 붙고, 연도가 바뀌면 01부터 다시 시작합니다. 체크를 빼면 그 쪽은 인쇄되지 않습니다. 노란색 행은 계기판 차이가 있는 기록입니다. 인쇄 창에서 "배경 그래픽"을 켜 주세요.</p></div>
+  <div class="pcols noprint">
+    <div class="card">
+      ${printCarSelect()}
+      <div style="margin-top:14px"><b>인쇄할 쪽 고르기</b> <button class="mini" onclick="setAllPages(true)">전체 선택</button> <button class="mini" onclick="setAllPages(false)">전체 해제</button></div>
+      ${pagePicker(targets)}
+    </div>
+    <div class="card">
+      <b>선택된 쪽 (${picked})</b>
+      <div class="selbox">${vlist}</div>
+      <button class="main pu" onclick="window.print()">🖨 선택한 ${picked}쪽 인쇄 / PDF 저장</button>
+      <p class="lbl" style="margin-top:8px;line-height:1.6">번호는 기록의 저장 연도 기준으로 붙고, 연도가 바뀌면 01부터 다시 시작합니다. 노란색 행은 계기판 차이가 있는 기록입니다. 인쇄 창에서 "배경 그래픽"을 켜 주세요.</p>
+    </div>
+  </div>
+  <div class="card noprint"><b>차량별 현황</b>
+  <table class="tb"><tr><th>차량</th><th>기록</th><th>쪽 수</th><th>상태</th></tr>${status}</table></div>
   <div id="printArea">${html}</div>`;
 }
 
