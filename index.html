@@ -143,7 +143,11 @@ body.pc .gate{max-width:440px;margin:90px auto 0}
 body.pc .gate .card{margin-top:0}
 .pk{display:inline-flex;align-items:center;gap:4px;margin:4px 12px 4px 0;font-size:15px}
 .pk-car{margin-top:8px;line-height:2}
-.tb.wide{min-width:980px}
+.tb.wide{width:100%}
+body.pc .tb.wide th,body.pc .tb.wide td{font-size:13px;padding:5px 3px;word-break:keep-all;line-height:1.35}
+body.pc .scroll{max-height:calc(100vh - 250px);min-height:260px}
+body.pc .head h1{font-size:22px;margin:4px 0 8px}
+body.pc .head{margin-bottom:6px}
 @media print{
   .pg{height:273mm;padding:0;border:0;overflow:hidden;box-sizing:border-box;page-break-inside:avoid}
   .pt2 td{height:9.5mm}
@@ -474,8 +478,8 @@ function adminLogView(){
   <div class="scroll"><table class="tb wide"><tr><th>월/일</th><th>쪽</th><th>차량</th><th>운전자</th><th>탑승</th><th>행선지</th><th>목적</th><th>출발</th><th>도착</th><th>출발km</th><th>도착km</th><th>거리</th><th>차량정비·주유</th><th>잔유량</th><th></th></tr>
   ${rows.map(r=>`<tr class="${r.flag?'flag':''}"><td>${esc(r.m)}/${esc(r.d)}</td><td>${esc(labelOf[r.rowNo]||'-')}</td><td>${esc(r.car)}</td><td>${esc(r.driver)}</td><td>${esc(r.people)}</td><td>${esc(r.dest)}</td><td>${esc(r.purpose)}</td><td>${esc(r.st)}</td><td>${esc(r.en)}</td><td>${esc(r.odoS)}</td><td>${esc(r.odoE)}</td><td>${esc(r.dist)}</td><td>${esc(r.fix)}</td><td>${esc(r.gauge)}</td><td><button class="mini" onclick="logEdit(${r.rowNo})">수정</button></td></tr>`).join("")||'<tr><td colspan="15">기록이 없습니다</td></tr>'}
   </table></div></div>`;
-  const right = adminEditRow!==null ? logEditForm() : `<div class="card empty" style="margin-top:0">왼쪽 목록에서 <b>수정</b>할 기록을 고르거나, <b>구간 기록 추가</b>를 누르세요.</div>`;
-  return `<div class="split"><div>${list}</div><div>${right}</div></div>`;
+  if(adminEditRow===null) return `<div>${list}</div>`;
+  return `<div class="split"><div>${list}</div><div>${logEditForm()}</div></div>`;
 }
 function logEdit(rowNo){ adminEditRow=rowNo; render(); }
 function logNew(){ adminEditRow="new"; render(); }
